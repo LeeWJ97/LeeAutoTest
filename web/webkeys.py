@@ -9,7 +9,6 @@ import traceback
 
 from selenium import webdriver
 
-from common.verify import Verify
 from inter.commonKeys import sysKey
 from common import logger, config
 
@@ -27,8 +26,6 @@ class Web:
         self.row = 0
         # 保存查找元素失败的异常
         self.e = None
-        # 验证码识别
-        self.verify = None
 
     def openbrowser(self, br="gc", ex=""):
         """
@@ -81,12 +78,6 @@ class Web:
             self.__write_excel(True, "浏览器打开成功")
             # self.driver.find_element_by_partial_link_text()
             # self.driver.get_screenshot_as_png()
-
-            try:
-                self.verify = Verify(config.config['vusername'],
-                                     config.config['vpassword'],config.config['soft_id'])
-            except Exception as e:
-                logger.warn("您暂不支持验证码识别")
 
             return True
 
@@ -199,7 +190,6 @@ class Web:
             self.__write_excel(False, self.e)
             return False
 
-        #默认用于截图验证码
         if filename == '':
             filename = 'verify'
 
@@ -211,35 +201,6 @@ class Web:
         except Exception as e:
             self.__write_excel(False, traceback.format_exc())
             return False
-
-    def getverify(self,codetype=''):
-        """
-        调用超级鹰识别验证码
-        :param codetype: 验证码类型，默认1902
-        :return: 识别成功失败
-        """
-
-        #设置默认验证码类型
-        if codetype == "":
-            codetype = 1902
-
-        try:
-            # 获取验证码
-            v = self.verify.PostPic(int(codetype))
-            if v is None:
-                v = 'None'
-
-            # 关联验证码
-            sysKey.relations["verify"] = v
-            self.__write_excel(True, "截图成功")
-            return True
-        except Exception as e:
-            v = "None"
-            # 关联验证码
-            sysKey.relations["verify"] = v
-            self.__write_excel(False, traceback.format_exc())
-            return False
-
 
     def input(self, locator, text):
         """
