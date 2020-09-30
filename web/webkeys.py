@@ -8,7 +8,7 @@ import time
 import traceback
 
 from selenium import webdriver
-
+from selenium.webdriver.common.action_chains import ActionChains
 from inter.commonKeys import sysKey
 from common import logger, config
 
@@ -63,14 +63,14 @@ class Web:
                 # 使用cmd命令去创建一个用户文件
                 # "C:\Program Files\Mozilla Firefox\firefox.exe" -p
                 opt = webdriver.FirefoxOptions()
-                opt.profile = r'%s\AppData\Roaming\Mozilla\Firefox\Profiles\mytest.mytest' % os.environ["USERPROFILE"]
+                opt.profile = rf'{os.environ["USERPROFILE"]}\AppData\Roaming\Mozilla\Firefox\Profiles\mytest.mytest'
                 self.driver = webdriver.Firefox(executable_path=ex, firefox_options=opt)
 
             elif br == 'ie':
                 if ex == "":
                     ex = "./lib/conf/IEDriverServer.exe"
                 opt = webdriver.IeOptions()
-                opt.profile = r'%s\Local\Microsoft\Windows\INetCache' % os.environ["USERPROFILE"]
+                opt.profile = rf'{os.environ["USERPROFILE"]}\Local\Microsoft\Windows\INetCache'
                 self.driver = webdriver.Ie(executable_path=ex, options=opt)
 
             # 添加隐式等待
@@ -191,10 +191,13 @@ class Web:
             return False
 
         if filename == '':
-            filename = 'verify'
+            filename = 'ele_pic'
 
         try:
-            filename = f'./lib/verify/{filename}.png'
+            #如果路径不存在，则自动创建
+            if not os.path.exists('./lib/ele_pic/'):
+                os.mkdir('./lib/ele_pic/')
+            filename = f'./lib/ele_pic/{filename}.png'
             ele.screenshot(filename)
             self.__write_excel(True, "截图成功")
             return True
@@ -365,6 +368,78 @@ class Web:
             self.__write_excel(False, traceback.format_exc())
             return False
 
+    def movetoele(self,locator):
+        """
+        鼠标悬停
+        :param locator: 定位iframe的定位器
+        :return: 是否成功
+        """
+        ele = self.__find_ele(locator)
+        if ele is None:
+            self.__write_excel(False, self.e)
+            return False
+        try:
+            ActionChains(self.driver).move_to_element(ele).perform()
+            self.__write_excel(True, "悬停成功")
+            return True
+        except Exception as e:
+            self.__write_excel(False, traceback.format_exc())
+            return False
+
+    def dubbleclick(self,locator):
+        """
+        鼠标左键双击
+        :param locator: 定位iframe的定位器
+        :return: 是否成功
+        """
+        ele = self.__find_ele(locator)
+        if ele is None:
+            self.__write_excel(False, self.e)
+            return False
+        try:
+            ActionChains(self.driver).double_click(ele).perform()
+            self.__write_excel(True, "鼠标左键双击成功")
+            return True
+        except Exception as e:
+            self.__write_excel(False, traceback.format_exc())
+            return False
+
+    def rightclick(self,locator):
+        """
+        鼠标右键单击
+        :param locator: 定位iframe的定位器
+        :return: 是否成功
+        """
+        ele = self.__find_ele(locator)
+        if ele is None:
+            self.__write_excel(False, self.e)
+            return False
+        try:
+            ActionChains(self.driver).context_click(ele).perform()
+            self.__write_excel(True, "鼠标右键成功")
+            return True
+        except Exception as e:
+            self.__write_excel(False, traceback.format_exc())
+            return False
+
+    def dragdrop(self,srclocator,dstlocator):
+        """
+        鼠标拖拽源元素到目标元素
+        :param locator: 定位iframe的定位器
+        :return: 是否成功
+        """
+        srcele = self.__find_ele(srclocator)
+        dstele = self.__find_ele(dstlocator)
+        if srcele is None or dstele is None:
+            self.__write_excel(False, self.e)
+            return False
+        try:
+            ActionChains(self.driver).drag_and_drop(srcele,dstele).perform()
+            self.__write_excel(True, "拖拽成功")
+            return True
+        except Exception as e:
+            self.__write_excel(False, traceback.format_exc())
+            return False
 
     def __get__relations(self, params):
         """
@@ -378,7 +453,7 @@ class Web:
             params = str(params)
 
         for key in sysKey.relations.keys():
-            params = params.replace('{' + key + '}', str(sysKey.relations[key]))
+            params = params.replace(f'${{{key}}}', str(sysKey.relations[key]))
         return params
 
     def __find_ele(self, locator):
@@ -388,12 +463,12 @@ class Web:
         :return: 返回找到的元素
         """
         try:
-            if locator.startswith("id="):
-                locator = locator[locator.find('=') + 1:]
-                ele = self.driver.find_element_by_id(locator)
-            elif locator.startswith("xpath="):
+            if locator.startswith("xpath="):
                 locator = locator[locator.find('=') + 1:]
                 ele = self.driver.find_element_by_xpath(locator)
+            elif locator.startswith("id="):
+                locator = locator[locator.find('=') + 1:]
+                ele = self.driver.find_element_by_id(locator)
             elif locator.startswith("tagname="):
                 locator = locator[locator.find('=') + 1:]
                 ele = self.driver.find_element_by_tag_name(locator)

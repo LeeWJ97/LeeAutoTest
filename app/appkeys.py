@@ -291,7 +291,7 @@ class App:
             params = str(params)
 
         for key in sysKey.relations.keys():
-            params = params.replace('{' + key + '}', str(sysKey.relations[key]))
+            params = params.replace(f'${{{key}}}', str(sysKey.relations[key]))
         return params
 
     def __find_ele(self, locator):
