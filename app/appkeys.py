@@ -99,7 +99,7 @@ class App:
             self.conf.update(conf)
             self.driver = webdriver.Remote("http://127.0.0.1:4723/wd/hub", conf)
             #隐式等待
-            self.driver.implicitly_wait(50)
+            #self.driver.implicitly_wait(20)
             self.__write_excel(True, "等待成功")
         except Exception as e:
             self.__write_excel(False, traceback.format_exc())
@@ -232,7 +232,7 @@ class App:
         :return: 点击成功/失败
         """
         if t == '':
-            t = 10
+            t = 1
         time.sleep(int(t))
 
         ele = self.__find_ele(locator)
@@ -300,22 +300,70 @@ class App:
         :param locator: xpath
         :return: 返回找到的元素ele
         """
-        try:
-            #如果以/开头，说明为xpath定位
-            if locator.startswith("/"):
-                ele = self.driver.find_element_by_xpath(locator)
-            # 如果存在:id/，说明为id定位
-            elif locator.index(':id/') > 0:
-                ele = self.driver.find_element_by_id(locator)
-            #否则为accessibility_id定位
-            else:
-                ele = self.driver.find_element_by_accessibility_id(locator)
+        count = 40
+        while 1:
+            try:
+                #以%{开头，说明需要find_elements (xpath)
+                if locator.startswith('%{'):
+                    try:
+                        #获取索引值
+                        i = locator[locator.find('{') + 1:locator.find('}')]
+                        i = int(i)
+                        locator = locator[locator.find('}')+1:]
+                        ele = self.__find_eles(locator,i)
+                    except Exception as e:
+                        self.e = traceback.format_exc()
+                        logger.error(str(e))
+                        return None
 
-        except Exception as e:
-            self.e = traceback.format_exc()
-            return None
+                #如果以/开头，说明为xpath定位
+                elif locator.startswith("/"):
+                    ele = self.driver.find_element_by_xpath(locator)
+                # 如果存在:id/，说明为id定位
+                elif locator.index(':id/') > 0:
+                    ele = self.driver.find_element_by_id(locator)
+                #否则为accessibility_id定位
+                else:
+                    ele = self.driver.find_element_by_accessibility_id(locator)
+                return ele
 
-        return ele
+            except Exception as e:
+                count -= 1
+                logger.info(f'{count}:寻找元素中:{locator}')
+                time.sleep(0.5)
+                if not count:
+                    self.e = traceback.format_exc()
+                    return None
+
+
+
+    def __find_eles(self, locator,i):
+        """
+        通过定位器找到多个元素  xpath
+        :param locator: xpath
+        :return: 返回找到的元素ele
+        :i：数组下标
+        """
+        count = 40
+        while 1:
+            try:
+                #xpath定位
+                #print(locator)
+                i = int(i)
+                #print(i)
+                ele = self.driver.find_elements_by_xpath(locator)[i]
+                #print(ele)
+                return ele
+
+            except Exception as e:
+                count -= 1
+                time.sleep(0.5)
+                logger.info(f'{count}:寻找元素中:{locator}')
+                if not count:
+                    self.e = traceback.format_exc()
+                    return None
+
+
 
     def __write_excel(self, status, msg):
         """

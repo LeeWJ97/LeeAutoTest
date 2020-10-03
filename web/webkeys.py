@@ -9,6 +9,7 @@ import traceback
 
 from selenium import webdriver
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.keys import Keys
 from inter.commonKeys import sysKey
 from common import logger, config
 
@@ -74,7 +75,7 @@ class Web:
                 self.driver = webdriver.Ie(executable_path=ex, options=opt)
 
             # 添加隐式等待
-            self.driver.implicitly_wait(10)
+            #self.driver.implicitly_wait(10)
             self.__write_excel(True, "浏览器打开成功")
             # self.driver.find_element_by_partial_link_text()
             # self.driver.get_screenshot_as_png()
@@ -213,9 +214,14 @@ class Web:
         :return: 输入成功失败
         """
         ele = self.__find_ele(locator)
+
         if ele is None:
             self.__write_excel(False, self.e)
             return False
+
+        # 如果输入的是操作键盘
+        if text.startswith('Keys.'):
+            text = eval(text)
 
         try:
             text = self.__get__relations(text)
@@ -459,41 +465,48 @@ class Web:
     def __find_ele(self, locator):
         """
         通过定位器找到元素
-        :param locator: xpath
+        :param locator: 默认xpath
         :return: 返回找到的元素
         """
-        try:
-            if locator.startswith("xpath="):
-                locator = locator[locator.find('=') + 1:]
-                ele = self.driver.find_element_by_xpath(locator)
-            elif locator.startswith("id="):
-                locator = locator[locator.find('=') + 1:]
-                ele = self.driver.find_element_by_id(locator)
-            elif locator.startswith("tagname="):
-                locator = locator[locator.find('=') + 1:]
-                ele = self.driver.find_element_by_tag_name(locator)
-            elif locator.startswith("name="):
-                locator = locator[locator.find('=') + 1:]
-                ele = self.driver.find_element_by_name(locator)
-            elif locator.startswith("linktext="):
-                locator = locator[locator.find('=') + 1:]
-                ele = self.driver.find_element_by_link_text(locator)
-            elif locator.startswith("css="):
-                locator = locator[locator.find('=') + 1:]
-                ele = self.driver.find_element_by_css_selector(locator)
-            elif locator.startswith("class="):
-                locator = locator[locator.find('=') + 1:]
-                ele = self.driver.find_element_by_class_name(locator)
-            elif locator.startswith("partial="):
-                locator = locator[locator.find('=') + 1:]
-                ele = self.driver.find_element_by_partial_link_text(locator)
-            else:
-                ele = self.driver.find_element_by_xpath(locator)
-        except Exception as e:
-            self.e = traceback.format_exc()
-            return None
+        count = 40
+        while 1:
+            try:
+                if locator.startswith("xpath="):
+                    locator = locator[locator.find('=') + 1:]
+                    ele = self.driver.find_element_by_xpath(locator)
+                elif locator.startswith("id="):
+                    locator = locator[locator.find('=') + 1:]
+                    ele = self.driver.find_element_by_id(locator)
+                elif locator.startswith("tagname="):
+                    locator = locator[locator.find('=') + 1:]
+                    ele = self.driver.find_element_by_tag_name(locator)
+                elif locator.startswith("name="):
+                    locator = locator[locator.find('=') + 1:]
+                    ele = self.driver.find_element_by_name(locator)
+                elif locator.startswith("linktext="):
+                    locator = locator[locator.find('=') + 1:]
+                    ele = self.driver.find_element_by_link_text(locator)
+                elif locator.startswith("css="):
+                    locator = locator[locator.find('=') + 1:]
+                    ele = self.driver.find_element_by_css_selector(locator)
+                elif locator.startswith("class="):
+                    locator = locator[locator.find('=') + 1:]
+                    ele = self.driver.find_element_by_class_name(locator)
+                elif locator.startswith("partial="):
+                    locator = locator[locator.find('=') + 1:]
+                    ele = self.driver.find_element_by_partial_link_text(locator)
+                else:
+                    ele = self.driver.find_element_by_xpath(locator)
 
-        return ele
+                return ele
+
+            except Exception as e:
+                count -= 1
+                time.sleep(0.5)
+                logger.info(f'{count}:寻找元素中:{locator}')
+                if not count:
+                    self.e = traceback.format_exc()
+                    return None
 
     def __write_excel(self, status, msg):
         """

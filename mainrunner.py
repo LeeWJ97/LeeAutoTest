@@ -3,7 +3,7 @@
 # @Function  :  LeeAutoTest框架入口
 # @Version  : 2.1
 
-import inspect,time,os, sys
+import inspect,time,os,sys
 
 from app.appkeys import App
 from common.NewExcel import Reader, Writer
@@ -17,11 +17,9 @@ from web.webkeys import Web
 from inter.commonKeys import sysKey
 
 
-logger.info("开始运行")
-
 #获取当前路径
 sysKey.path = sys.path[0]
-logger.info(sysKey.path)
+logger.info(f'开始运行，当前目录路径：{sysKey.path}')
 
 def getfunc(obj, method):
     """
@@ -51,7 +49,7 @@ def runcase(obj, line):
     :return:
     """
     if len(line[0]) > 0 or len((line[1])) > 0:
-        # 分组信息不执行
+        # 分组信息不执行，第一列或第二列有文字的说明是分组信息
         return
 
     func = getfunc(obj, line[3])
@@ -77,16 +75,13 @@ config.get_config('./lib/conf/conf.properties')
 #mysql = Mysql()
 #mysql.init_mysql('./lib/conf/userinfo.sql')
 
-
-# 启用加密
-#Encrypt.init()
-
 #要运行的用例文件名，不需要后缀名
 casename = config.config.get('casename')
 
 reader = Reader()
 reader.open_excel(f'./lib/{casename}.xlsx')
 writer = Writer()
+#复制用例文件，用于写入结果
 writer.copy_open(f'./lib/{casename}.xlsx', f'./lib/{casename}_result.xlsx')
 sheetname = reader.get_sheets()
 
@@ -100,7 +95,6 @@ http = HTTP(writer)
 web = Web(writer)
 app = App(writer)
 obj = http
-
 
 for sheet in sheetname:
     # 设置当前读取的sheet页面
@@ -138,7 +132,6 @@ logger.info(summary)
 
 #获取所有用例结果
 groups = res.get_groups(f'./lib/{casename}_result.xlsx')
-#print(groups)
 logger.info(groups)
 
 #读取发邮件的html模板
@@ -175,7 +168,3 @@ for i in range(len(groups)):
 html = html.replace('mailbody',trs)
 mail = Mail([f'./lib/{casename}_result.xlsx'],[f'{casename}_测试报告详情.xlsx'])
 mail.send(html)
-
-# 关闭加密
-#Encrypt.shutdown()
-
