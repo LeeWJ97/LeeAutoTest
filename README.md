@@ -1,4 +1,4 @@
-​		LeeAutoTest是一款关键字数据驱动自动化测试框架，支持HTTP接口/WEBUI/APP自动化测试，扩展性良好。
+​		LeeAutoTest是一款关键字数据驱动自动化测试框架，支持HTTP接口/WEBUI/APP自动化测试，扩展性良好。Readme详细在线文档请访问：https://jmlin.cn/LAT/README.md
 
 
 
