@@ -3,10 +3,11 @@
 # @Function  :  自动化架构体系，数据驱动运行入口
 # @Version  : 2.1
 
-import json, traceback, requests,jsonpath
+import json, traceback, requests,jsonpath,time
 
 from common import logger#, Encrypt
 from inter.commonKeys import sysKey
+from common.mysql import Mysql
 
 
 class HTTP:
@@ -50,8 +51,12 @@ class HTTP:
         """
 
         #如果代理被设置，则转换为json
-        if proxies:
-            proxies = eval(proxies)
+        try:
+            if proxies:
+                proxies = eval(proxies)
+        except Exception as e:
+            proxies = None
+            logger.error(f'代理设置失败：{str(e)}')
         # 对传入参数的处理
         if params is None or params == '':
             params = None
@@ -99,8 +104,12 @@ class HTTP:
         """
 
         #如果代理被设置，则转换为json
-        if proxies:
-            proxies = eval(proxies)
+        try:
+            if proxies:
+                proxies = eval(proxies)
+        except Exception as e:
+            proxies = None
+            logger.error(f'代理设置失败：{str(e)}')
         # 对传入参数的处理
         if params is None or params == '':
             params = None
@@ -113,8 +122,6 @@ class HTTP:
         # 实现关联
         params = self.__get__relations(params)
 
-        ############################注意加密
-#        params = self.__use_encrypt(params)
 
         params = self.__get_data(params)
 
@@ -229,6 +236,9 @@ class HTTP:
         :param paramname: 保存后参数的名字
         :return: 成功失败
         """
+
+        if value is None or value == '':
+             value = ''
         #对value进行MD5加密
         import hashlib
         value = hashlib.md5(value.encode(encoding='UTF-8')).hexdigest()
@@ -236,6 +246,101 @@ class HTTP:
         sysKey.relations[paramname] = value
 
         self.__write_excel(True, value)
+        return True
+
+    def sleep(self, t):
+        """
+        固定等待
+        :param t：延时时间，单位s
+        :return: 返回成功失败
+        """
+        try:
+            time.sleep(int(t))
+            self.__write_excel(True, "等待")
+            return True
+        except Exception as e:
+            self.__write_excel(False, traceback.format_exc())
+            return False
+
+    def ts(self,length='',paramname=''):
+        """
+        创建当前时间戳
+        :param length: 时间戳长度，不传此字段时或传10时，默认10位，length为13或其他值时，为13位
+        :param paramname: 保存后参数的名字
+        :return: 成功失败
+        """
+
+        #默认该参数名为ts
+        if paramname is None or paramname == '':
+            paramname = 'ts'
+
+        #时间戳10位的情况
+        if length is None or length == '' or length == 10 or length == '10':
+            timestamp = str(time.time())[:10]
+        #时间戳13位的情况
+        else:
+            timestamp = str(time.time())[:10] + '000'
+
+        # 保存键值对到关联字典
+        sysKey.relations[paramname] = timestamp
+
+        self.__write_excel(True, timestamp)
+        return True
+
+
+
+    def randomcreate(self, type,length,paramname):
+        """
+        随机数生成器
+        :param type: 随机数生成类型，可选：1：随机大小写英文数字、2：随机数字 、3:随机大写英文 、4：随机小写英文、
+                        5：随机大小写英文、6：随机大写英文+数字、7：随机小写英文+数字
+        :param length: 生成的长度
+        :param paramname：保存为全局变量的变量名
+        :return: 成功失败
+        """
+        #默认赋值
+        type = '1' if not type else type
+        length = '7' if not length else length
+        paramname = 'ran_str' if not paramname else paramname
+        try:
+            length = int(length)
+        except Exception as e:
+            logger.error(str(e))
+            self.__write_excel(False, traceback.format_exc())
+            return False
+        import random,string
+        #随机大小写英文数字
+        if type == '1':
+            ran_str = ''.join(random.sample(string.ascii_letters + string.digits, length))
+        #随机数字，这里通过列表推导式生成不然数字过长会报错
+        elif type == '2':
+            ran_str = ''.join([''.join(random.sample(string.digits , 1)) for i in range(length)])
+        #随机大写英文
+        elif type == '3':
+            ran_str = ''.join(random.sample(string.ascii_letters, length)).upper()
+        #随机小写英文
+        elif type == '4':
+            ran_str = ''.join(random.sample(string.ascii_letters, length)).lower()
+        #随机大小写英文
+        elif type == '5':
+            ran_str = ''.join(random.sample(string.ascii_letters, length))
+        #随机大写英文+数字
+        elif type == '6':
+            ran_str = ''.join(random.sample(string.ascii_letters + string.digits, length)).upper()
+        #随机小写英文+数字
+        elif type == '7':
+            ran_str = ''.join(random.sample(string.ascii_letters + string.digits, length)).lower()
+
+        #如果都不匹配，就随机大小写英文数字
+        else:
+            ran_str = ''.join(random.sample(string.ascii_letters + string.digits, length))
+
+        # 保存键值对到关联字典
+        sysKey.relations[paramname] = ran_str
+        self.__write_excel(True, ran_str)
+        return True
+
+
         return True
 
     def assertequaljson(self, jsonp):
@@ -293,6 +398,61 @@ class HTTP:
             self.__write_excel(False, self.result.text)
             return False
 
+    def assertmysql(self,sql,dictv):
+        '''
+        与mysql数据库指定值作比较
+        sql:要查询的sql语句
+        dictv:断言条件，形式:{n1:'value1',n2:'value2'}  例子：{2:'Jack',3:23}，（说明要比较查询结果的某一行是否同时存在第二列为Jack及第三列为23）
+        '''
+        # 实现关联
+        dictv = self.__get__relations(dictv)
+
+        if sql.upper().startswith('SELECT'):
+            #回写excel的数据
+            writeexcel = ''
+            #返回查询结果，mysqlcheck是一个元组，里面又包含了每一行的查询结果（每一行一个元组），形如((1,"Jack",23),(2,"Tom",16))
+            mysqlcheck = Mysql().mysqlexec(sql)
+            if 'error!!!' in mysqlcheck:
+                self.__write_excel(False, mysqlcheck)
+                logger.error('sql查询出错')
+                return False
+            #字符串转字典
+            #dictv = eval(f'{{{dictv}}}')
+            dictv = eval(dictv)
+            logger.info(mysqlcheck)
+            try:
+                # 遍历每一行
+                for i in mysqlcheck:
+                    flag = True
+                    # 遍历行中的每一列
+                    for j in range(len(i)):
+                        value = i[j]
+                        #先判断dict的键存不存在
+                        if j + 1 not in dictv:
+                            continue
+                        #如果某一值不符合断言就pass掉
+                        if dictv[j + 1] != value:
+                            flag = False
+                            break
+                    if flag:
+                        #print(i)
+                        writeexcel += str(i)
+                        #break
+                if writeexcel:
+                    self.__write_excel(True, writeexcel)
+                    return True
+                else:
+                    self.__write_excel(False, writeexcel)
+                    return False
+            except Exception as e:
+                logger.error(f'比较sql时发生了错误：{str(e)}')
+                self.__write_excel(False, traceback.format_exc())
+                return False
+        else:
+            logger.error('不是以SELECT开头的sql语句，无法进行比较')
+            self.__write_excel(False,'不是以SELECT开头的sql语句，无法进行比较')
+            return False
+
     def __get_data(self, params):
         """
         url参数转字典
@@ -325,8 +485,12 @@ class HTTP:
         if params is None:
             return None
 
+        #获取json数据时可能会获取到int类型的数据，故需转换为str
+        if isinstance(params,int):
+            params = str(params)
+
         for key in sysKey.relations.keys():
-            params = params.replace('{' + key + '}', str(sysKey.relations[key]))
+            params = params.replace(f'${{{key}}}', str(sysKey.relations[key]))
         return params
 
     def __write_excel(self, status, msg):
@@ -347,22 +511,4 @@ class HTTP:
             msg = msg[0:32767]
 
         self.writer.write(self.row, 8, str(msg))
-
-    # def __use_encrypt(self,params):
-    #     """
-    #     替换加密后的字符串
-    #     :param s: 需要加密的字符串
-    #     :return: 加密后的字符串
-    #     """
-    #     # 递归的思维，当字符串里面既有[,又有]的时候
-    #     # 反复的执行如下替换
-    #     if params is None:
-    #         return ''
-    #     elif params.find('[') >= 0 and params.find(']') >= 0:
-    #         en_s = params[params.find('[') + 1:params.find(']')]
-    #         en_s1 = Encrypt.encrypt(en_s)
-    #         params = params.replace('[' + en_s + ']', en_s1)
-    #         return self.__use_encrypt(params)
-    #     else:
-    #         return params
 

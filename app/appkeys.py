@@ -300,7 +300,7 @@ class App:
         :param locator: xpath
         :return: 返回找到的元素ele
         """
-        count = 40
+        count = 100
         while 1:
             try:
                 #以%{开头，说明需要find_elements (xpath)
@@ -344,7 +344,7 @@ class App:
         :return: 返回找到的元素ele
         :i：数组下标
         """
-        count = 40
+        count = 100
         while 1:
             try:
                 #xpath定位
