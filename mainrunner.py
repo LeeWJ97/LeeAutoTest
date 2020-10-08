@@ -70,11 +70,12 @@ def runcase(obj, line):
 
 
 # 初始化配置
-config.get_config('./lib/conf/conf.properties')
+config.get_config('./lib/conf/conf.yml')
 # 初始化数据库
 #mysql = Mysql()
 #mysql.init_mysql('./lib/conf/userinfo.sql')
 
+print(config.config)
 #要运行的用例文件名，不需要后缀名
 casename = config.config.get('casename')
 

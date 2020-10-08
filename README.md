@@ -1,4 +1,4 @@
-​		LeeAutoTest是一款基于Python的关键字数据驱动自动化测试框架，支持HTTP接口/WEBUI/APP自动化测试，扩展性良好。Readme详细在线文档请访问：<a href='https://jmlin.cn/LAT/README.html' target='_blank'>在线文档</a>
+		LeeAutoTest是一款基于Python的关键字数据驱动自动化测试框架，支持HTTP接口/WEBUI/APP自动化测试，扩展性良好。Readme详细在线文档请访问：<a href='https://jmlin.cn/LAT/README.html' target='_blank'>在线文档</a>
 
 ## 一、框架简易流程图
 
@@ -6,31 +6,31 @@
 
 ## 二、配置介绍
 
-### 2.1 conf.properties
+### 2.1 conf.yml
 
 ​		框架重要配置文件。
 
-```ini
+```yml
 ##############用例执行配置###############
-casename=输入存储用例的xlsx文件，无需输入后缀名
+casename: 输入存储用例的xlsx文件，无需输入后缀名
 ##############appium的main.js文件路径###############
-appium_mainjs_path=appium的main.js文件路径
+appium_mainjs_path: appium的main.js文件路径
 ################mysql配置################
-mysqluser=数据库用户名
-mysqlpassword=数据库密码
-mysqlport=数据库端口
-mysqlhost=数据库IP
-mysqldb=所使用的数据库
-mysqlcharset=数据库编码，一般utf8
+mysqluser: 数据库用户名
+mysqlpassword: 数据库密码
+mysqlport: 数据库端口
+mysqlhost: 数据库IP
+mysqldb: 所使用的数据库
+mysqlcharset: 数据库编码，一般utf8
 ################邮件配置##################
-mail=发送邮件通知的邮箱
-pwd=邮箱密码，QQ邮箱为专用授权码
-mailto=收件人，多个的话用逗号隔开
-mailcopy=抄送，多个的话用逗号隔开
-mailtitle=LeeAutoTest自动化测试报告
-mail_encoding=utf8
-mailtxt=module1.html
-mailnick=LeeAutoTest
+mail: 发送邮件通知的邮箱
+pwd: 邮箱密码，QQ邮箱为专用授权码
+mailto: 收件人，多个的话用逗号隔开
+mailcopy: 抄送，多个的话用逗号隔开
+mailtitle: LeeAutoTest自动化测试报告
+mail_encoding: utf8
+mailtxt: module1.html
+mailnick: LeeAutoTest
 ```
 
 

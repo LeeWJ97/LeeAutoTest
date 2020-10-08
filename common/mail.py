@@ -89,7 +89,8 @@ class Mail:
 
 
 if __name__ == '__main__':
-    config.get_config('../lib/conf/conf.properties')
+    #config.get_config('../lib/conf/conf.properties')
+    config.get_config('../lib/conf/conf.yml')
     logger.debug(config.config)
     mail = Mail()
     html = '这是一封测试邮件'

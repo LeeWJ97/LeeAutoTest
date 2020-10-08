@@ -33,7 +33,7 @@ class Reader:
 
         # 如果打开的文件不存在，就报错
         if not os.path.isfile(srcfile):
-            logger.error("%s not exist!" % (srcfile))
+            logger.error(f"{srcfile}不存在！！无法打开！！")
             return
 
         # 设置读取excel使用utf8编码

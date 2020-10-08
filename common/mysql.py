@@ -72,7 +72,7 @@ class Mysql:
 
         # 获取游标
         cursor = connect.cursor()
-        logger.info(f"正在恢复{path}数据库")
+        logger.info(f"正在执行{path}")
         # 一行一行执行SQL语句
         for sql in self.__read_sql_file(path):
             cursor.execute(sql)
@@ -81,10 +81,43 @@ class Mysql:
         cursor.close()
         connect.close()
 
+    # 单独执行一条sql
+    def mysqlexec(self, sql):
+        try:
+            # 创建连接，执行语句的时候是在这个连接
+            connect = pymysql.connect(
+                user=self.mysql_config['mysqluser'],
+                password=self.mysql_config['mysqlpassword'],
+                port=self.mysql_config['mysqlport'],
+                host=self.mysql_config['mysqlhost'],
+                db=self.mysql_config['mysqldb'],
+                charset=self.mysql_config['mysqlcharset']
+            )
+
+            # 获取游标
+            cursor = connect.cursor()
+            logger.info(f"正在执行{sql}")
+
+            cursor.execute(sql)
+            #如果是select，则返回查询值
+            if sql.upper().startswith('SELECT'):
+                data = cursor.fetchall()
+            connect.commit()
+            # 关闭游标和连接
+            cursor.close()
+            connect.close()
+            if sql.upper().startswith('SELECT'):
+                return data
+        except Exception as e:
+            return f'error!!!:{str(e)}'
+
 
 # 调试代码
 if __name__ == '__main__':
-    config.get_config('../lib/conf/conf.properties')
+    #config.get_config('../lib/conf/conf.properties')
+    config.get_config('../lib/conf/conf.yml')
     # logger.info(config.config)
     mysql = Mysql()
-    mysql.init_mysql('../lib/conf/userinfo.sql')
+    #mysql.init_mysql('../lib/conf/userinfo.sql')
+   # mysql.mysqlexec('insert test(name,nickname) values("111","222")')
+    print(mysql.mysqlexec('select * from test'))

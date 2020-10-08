@@ -35,11 +35,6 @@ class Res:
         reader.readline()
         line = reader.readline()[1]
 
-        # # 旧版
-        # reader = Reader()
-        # reader.open_excel(result_path)
-        # reader.readline()
-        # line = reader.readline()
         print(line)
         self.summary['runtype'] = line[1]
         self.summary['title'] = line[2]
@@ -60,9 +55,6 @@ class Res:
             # openpyxl
             lines = reader.readline()
             for i in range(1, row):
-                # 旧版
-                # line = reader.readline()
-                # 新版
                 line = lines[i]
                 logger.info(line)
                 # 查找记录了分组信息的行
@@ -150,10 +142,6 @@ class Res:
             lines=reader.readline()
 
             for i in range(1, row):
-
-                # 旧版
-                # line = reader.readline()
-                # 新版
                 line = lines[i]
                 logger.info(line)
                 # 查找记录了分组信息的行
@@ -211,7 +199,6 @@ class Res:
                     # 执行结果不为空，则将用例统计数自增
                     else:
                         totalcount = totalcount + 1
-                        # logger.info(line)
                         # 如果通过，则通过数和总通过数均自增
                         if line[7] == "PASS":
                             totalpass += 1
@@ -249,10 +236,16 @@ class Res:
         return self.groups
 
 
-
+#调试
 if __name__ == '__main__':
+    from common import config
+    # 初始化配置
+    #config.get_config('../lib/conf/conf.properties')
+    config.get_config('../lib/conf/conf.yml')
     res = Res()
-    s = res.get_res('../lib/HTTP接口用例_result.xls')
+    path = f"../lib/{config.config.get('casename')}_result.xlsx"
+    print(path)
+    s = res.get_res(path)
     print(s)
-    r = res.get_groups('../lib/HTTP接口用例_result.xls')
+    r = res.get_groups(path)
     print(r)
