@@ -65,9 +65,12 @@ class Mail:
         # logger.debug(self.mail_info)
         # logger.debug(text)
         msg['to'] = ','.join(self.mail_info['to'])
-        msg['cc'] = ','.join(self.mail_info['cc']) if msg['cc'] != None else ''
+        if self.mail_info['cc'] != ['None']:
+            msg['cc'] = ','.join(self.mail_info['cc'])
+
         receive = self.mail_info['to']
-        receive += self.mail_info['cc']
+        if self.mail_info['cc'] != ['None']:
+            receive += self.mail_info['cc']
 
         # 添加附件
         for i in range(len(self.mail_info['filepaths'])):
