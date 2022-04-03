@@ -65,7 +65,7 @@ class Mail:
         # logger.debug(self.mail_info)
         # logger.debug(text)
         msg['to'] = ','.join(self.mail_info['to'])
-        msg['cc'] = ','.join(self.mail_info['cc'])
+        msg['cc'] = ','.join(self.mail_info['cc']) if msg['cc'] != None else ''
         receive = self.mail_info['to']
         receive += self.mail_info['cc']
 
