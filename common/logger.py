@@ -4,11 +4,15 @@
 # @Version  : 2.1
 
 import logging,os
+import time
 
+from inter.commonKeys import sysKey
 #指定日志文件存放路径及日志文件名
-path = '../log/'
-logfile = 'AllLog.log'
-logger = None
+
+
+path = f'{sysKey.path}\\log\\'
+logfile = f"AllLog_{str(sysKey.stamp2time(int(time.time()*1000))).replace('-','_').replace(':','_').replace(' ','_')}.log"
+print(path)
 
 #日志格式
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
@@ -16,7 +20,7 @@ formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 #判断日志文件存放路径是否存在，若不存在则自动创建相关文件夹
 if not os.path.exists(path):
     os.mkdir(path)
-c = logging.FileHandler(f'{path}/{logfile}', mode='a', encoding='utf8')
+c = logging.FileHandler(f'{path}\\{logfile}', mode='a', encoding='utf8')
 logger = logging.getLogger('frame log')
 logger.setLevel(logging.DEBUG)
 c.setFormatter(formatter)

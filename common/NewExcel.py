@@ -118,12 +118,12 @@ class Writer:
 
         # 判断要复制的文件是否存在
         if not os.path.isfile(srcfile):
-            logger.error(f'{srcfile}不存在！！')
+            logger.error(f'{srcfile} not exist')
             return
 
         # 判断要新建的文档是否存在，存在则提示
         if os.path.isfile(dstfile):
-            logger.warn(dstfile + " 文件已存在!")
+            logger.warn(dstfile + " exist")
 
         # 记录要保存的文件
         self.df = dstfile

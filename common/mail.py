@@ -2,6 +2,7 @@
 # @Author : LeeWJ
 # @Function  :  邮件发送模块
 # @Version  : 2.1
+import smtplib
 from smtplib import SMTP_SSL
 from email.header import Header
 from email.mime.text import MIMEText
@@ -19,7 +20,10 @@ class Mail:
         self.mail_info['from'] = config.config['mail']
         self.mail_info['username'] = config.config['mail']
         # smtp服务器域名
-        self.mail_info['hostname'] = f"smtp.{config.config['mail'][config.config['mail'].rfind('@') + 1:config.config['mail'].__len__()]}"
+        if 'works.com' in config.config['mail']:
+            self.mail_info['hostname'] = 'smtp.office365.com'
+        else:
+            self.mail_info['hostname'] = f"smtp.{config.config['mail'][config.config['mail'].rfind('@') + 1:config.config['mail'].__len__()]}"
 
         # 发件人的密码
         self.mail_info['password'] = config.config['pwd']
@@ -38,7 +42,12 @@ class Mail:
 
 
     def send(self, text):
-        smtp = SMTP_SSL(self.mail_info['hostname'])
+        # office365不支持SSL，只支持TLS
+        if 'works.com' in config.config['mail']:
+            smtp = smtplib.SMTP(self.mail_info['hostname'],587)
+            smtp.starttls()
+        else:
+            smtp = SMTP_SSL(self.mail_info['hostname'])
         smtp.set_debuglevel(0)
 
         ''' SMTP 'ehlo' command.
@@ -46,6 +55,7 @@ class Mail:
         host.
         '''
         smtp.ehlo(self.mail_info['hostname'])
+
         smtp.login(self.mail_info['username'], self.mail_info['password'])
 
 

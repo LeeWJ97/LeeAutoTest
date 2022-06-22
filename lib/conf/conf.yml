@@ -1,20 +1,22 @@
-##############用例执行配置###############
-casename: 用例
-##############appium的main.js文件路径###############
+##############Test Excel Name###############
+casename: example
+###############UI Web use Headless?##################
+UIheadless: False
+##############Appium main.js###############
 appium_mainjs_path: C:\Users\Administrator\AppData\Local\Programs\Appium\resources\app\node_modules\appium\build\lib\main.js
-################mysql配置################
-mysqluser: root
-mysqlpassword: 
-mysqlport: 3306
-mysqlhost: 
-mysqldb: test
-mysqlcharset: utf8
-################邮件配置##################
-mail: 
-pwd: 
-mailto: 
+################Mysql Config################
+mysqluser:
+mysqlpassword:
+mysqlport:
+mysqlhost:
+mysqldb:
+mysqlcharset:
+################Mail Config##################
+mail:
+pwd:
+mailto:
 mailcopy: 
-mailtitle: 接口自动化测试报告
+mailtitle: AutoTest_Demo
 mail_encoding: utf8
 mailtxt: module1.html
-mailnick: LeeAutoTest
+mailnick: AutoTest_Demo

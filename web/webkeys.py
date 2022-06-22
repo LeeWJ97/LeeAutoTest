@@ -4,6 +4,7 @@
 # @Version  : 2.1
 
 import os
+import re
 import time
 import traceback
 
@@ -11,7 +12,8 @@ from selenium import webdriver
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.keys import Keys
 from inter.commonKeys import sysKey
-from common import logger, config
+import inter.commonKeys
+from common import logger, config,xpathmap
 
 
 class Web:
@@ -28,7 +30,7 @@ class Web:
         # 保存查找元素失败的异常
         self.e = None
 
-    def openbrowser(self, br="gc", ex=""):
+    def openbrowser(self, br="gc",ex=""):
         """
         打开浏览器
         :param br: gc=谷歌浏览器(默认)；ff=火狐浏览器；ie=ie浏览器
@@ -43,10 +45,14 @@ class Web:
                 # 获取用户文件路径
                 userfile = os.environ["USERPROFILE"]
 
+                if str(config.config.get('UIheadless')) == "True":
+                    logger.info(f"Using Chrome --headless: {str(config.config.get('UIheadless'))}")
+                    option.headless = True
+
                 # 添加用户文件配置
                 # 使用缓存，也使用了cookie
-                option.add_argument("--user-data-dir=%s\\AppData\\Local\\Google\\Chrome\\user data"
-                                    % userfile)
+                #option.add_argument("--user-data-dir=%s\\AppData\\Local\\Google\\Chrome\\user data"
+                #                    % userfile)
                 # 配置chrome安装路径
                 # option.binary_location = "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
 
@@ -54,7 +60,10 @@ class Web:
                 if ex == "":
                     ex = "./lib/conf/chromedriver.exe"
 
-                self.driver = webdriver.Chrome(executable_path=ex)
+                self.driver = webdriver.Chrome(executable_path=ex,options=option)
+                if str(config.config.get('UIheadless')) == "True":
+                    self.driver.set_window_size(1920,1080)
+                #self.driver.maximize_window()
 
             elif br == 'ff':
                 if ex == "":
@@ -76,14 +85,14 @@ class Web:
 
             # 添加隐式等待
             #self.driver.implicitly_wait(10)
-            self.__write_excel(True, "浏览器打开成功")
+            self.__write_excel(True, "Browser Open successfully")
             # self.driver.find_element_by_partial_link_text()
             # self.driver.get_screenshot_as_png()
 
             return True
 
         except Exception as e:
-            logger.exception(e)
+            logger.exception(str(traceback.format_exc()))
             self.__write_excel(False, traceback.format_exc())
             self.writer.save_close()
             exit(-1)
@@ -95,15 +104,16 @@ class Web:
         :return: 成功失败
         """
         if self.driver is None:
-            self.__write_excel(False, "浏览器不存在")
+            self.__write_excel(False, "Browser not exist")
             return False
         try:
             self.driver.get(url)
-            self.__write_excel(True, f"访问地址{url}成功")
+            self.__write_excel(True, f"Open URL: {url} successfully")
             return True
         except Exception as e:
-            self.__write_excel(False, f"访问地址{url}失败")
-            logger.exception(e)
+            logger.exception(str(traceback.format_exc()))
+            self.__write_excel(False, f"Open URL: {url} failed")
+            #logger.exception(e)
             return False
 
     def click(self, locator):
@@ -118,11 +128,56 @@ class Web:
             return False
         try:
             ele.click()
-            self.__write_excel(True, "点击成功")
+            self.__write_excel(True, "Click successfully")
             return True
         except Exception as e:
-            self.__write_excel(False, traceback.format_exc())
+            screenshotfile = self.take_screenshot()
+            logger.exception(f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
+            self.__write_excel(False, f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
             return False
+
+    def whiletryclick(self, locator,manyclick=True):
+        """
+        通过定位器找到元素while try点击
+        :param locator: 定位器
+        :return: 点击成功失败
+        """
+        time.sleep(0.8)
+        trycount = 20
+        ele = self.__find_ele(locator)
+        if ele is None:
+            self.__write_excel(False, self.e)
+            return False
+        if str(manyclick).lower() != "false":
+            manyclick = True
+        else:
+            manyclick = False
+        while 1:
+            try:
+                #print('try')
+                ele.click()
+                if manyclick == True:
+                    print(f'{manyclick} more click: {locator}')
+                    locator = self.__xpath_map(locator)
+                    for i in range(3):
+                        try:
+                            ele = self.driver.find_element_by_xpath(locator)
+                            ele.click()
+                            time.sleep(0.1)
+                        except Exception as e:
+                            print(f'Many click {locator}: {str(e)}')
+                self.__write_excel(True, "click successfully")
+                return True
+            except Exception as e:
+                if trycount <= 0:
+                    screenshotfile = self.take_screenshot()
+                    logger.exception(f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
+                    self.__write_excel(False, f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
+                    return False
+                ele = self.__find_ele(locator)
+                trycount-=1
+                time.sleep(0.5)
+
 
     def clickhref(self, locator):
         """
@@ -138,11 +193,65 @@ class Web:
         try:
             href = ele.get_attribute('href')
             self.driver.get(href)
-            self.__write_excel(True, "链接点击成功")
+            self.__write_excel(True, "href click successfully")
             return True
         except Exception as e:
-            self.__write_excel(False, traceback.format_exc())
+            screenshotfile = self.take_screenshot()
+            logger.exception(f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
+            self.__write_excel(False, f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
             return False
+
+    def get_attribute(self, locator,attributename,param='attr'):
+        """
+        通过定位器找到a标签元素，然后获取到href连接，进行跳转，主要用于处理IE点击失败的情况
+        :param locator: 定位器
+        :return: 点击成功失败
+        """
+        ele = self.__find_ele(locator)
+        if ele is None:
+            self.__write_excel(False, self.e)
+            return False
+
+        try:
+            attr = ele.get_attribute(attributename)
+            # 设置到关联字典
+            sysKey.relations[param] = attr
+            self.__write_excel(True, f"get attribute successfully: {attr}")
+            return attr
+        except Exception as e:
+            screenshotfile = self.take_screenshot()
+            logger.exception(f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
+            self.__write_excel(False, f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
+            return False
+
+    def wait_ele_can_find(self, locator,attr=None):
+        """
+        通过定位器找到a标签元素，然后获取到href连接，进行跳转，主要用于处理IE点击失败的情况
+        :param locator: 定位器
+        :return: 点击成功失败
+        """
+        trycount = 50
+        if locator is None:
+            self.__write_excel(False, f'{locator} cannot be None')
+            return False
+        while 1:
+            try:
+                ele = self.__find_ele(locator)
+                if str(attr).strip(' '):
+                    attrvalue = self.get_attribute(locator,attr)
+                    if 'disabled' in attrvalue:
+                        logger.error(f'disabled found: {locator} {attr} = {attrvalue}  {str(trycount)}')
+                        raise Exception(f'disabled found: {locator} {attr} = {attrvalue}  {str(trycount)}')
+                self.__write_excel(True, f"Get successfully")
+                return True
+            except Exception as e:
+                if trycount <= 0:
+                    screenshotfile = self.take_screenshot()
+                    logger.exception(f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
+                    self.__write_excel(False, f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
+                    return False
+                trycount -= 1
+                time.sleep(0.5)
 
     def jsclick(self, locator):
         """
@@ -158,10 +267,12 @@ class Web:
 
         try:
             self.driver.execute_script("$(arguments[0]).click()", ele)
-            self.__write_excel(True, "点击成功")
+            self.__write_excel(True, "js click succesfully")
             return True
         except Exception as e:
-            self.__write_excel(False, traceback.format_exc())
+            screenshotfile = self.take_screenshot()
+            logger.exception(f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
+            self.__write_excel(False, f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
             return False
 
     def runjs(self, js):
@@ -173,10 +284,12 @@ class Web:
         try:
             time.sleep(1)
             self.driver.execute_script(js)
-            self.__write_excel(True, "点击成功")
+            self.__write_excel(True, f"js run successfully: {js}")
             return True
         except Exception as e:
-            self.__write_excel(False, traceback.format_exc())
+            screenshotfile = self.take_screenshot()
+            logger.exception(f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
+            self.__write_excel(False, f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
             return False
 
     def getimg(self,locator,filename=""):
@@ -200,11 +313,22 @@ class Web:
                 os.mkdir('./lib/ele_pic/')
             filename = f'./lib/ele_pic/{filename}.png'
             ele.screenshot(filename)
-            self.__write_excel(True, "截图成功")
+            self.__write_excel(True, f"take screenshot for {locator} successfully")
             return True
         except Exception as e:
-            self.__write_excel(False, traceback.format_exc())
+            screenshotfile = self.take_screenshot()
+            logger.exception(f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
+            self.__write_excel(False, f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
             return False
+
+    def take_screenshot(self,filename=''):
+        if not os.path.exists(f'{sysKey.path}\\log\\screenshot'):
+            os.mkdir(f'{sysKey.path}\\log\\screenshot')
+        if (str(filename).strip(' ') == '') or (filename is None):
+            filename = str(sysKey.stamp2time(int(time.time()*1000))).replace('-','_').replace(':','_').replace(' ','_')
+        fullfilename = f'{sysKey.path}\\log\\screenshot\\{filename}.png'
+        self.driver.save_screenshot(fullfilename)
+        return fullfilename
 
     def input(self, locator, text):
         """
@@ -213,6 +337,8 @@ class Web:
         :param text: 需要输入的文本
         :return: 输入成功失败
         """
+        time.sleep(2)
+        text = str(text)
         ele = self.__find_ele(locator)
 
         if ele is None:
@@ -220,16 +346,28 @@ class Web:
             return False
 
         # 如果输入的是操作键盘
-        if text.startswith('Keys.'):
+        if str(text).startswith('Keys.'):
             text = eval(text)
-
+        else:
+            #replace random text
+            if '{randomcreate}' in text:
+                text = str(text).replace('{randomcreate}',inter.commonKeys.sysKey.randomcreate(1,10))
+                logger.info(f'input replace random text: {text}')
         try:
             text = self.__get__relations(text)
-            ele.send_keys(text)
-            self.__write_excel(True, "输入成功")
+
+            try:
+                ele.send_keys(text)
+            except:
+                ele = self.__find_ele(locator)
+                ele.send_keys(text)
+            time.sleep(1.5)
+            self.__write_excel(True, "Input successfully")
             return True
         except Exception as e:
-            self.__write_excel(False, traceback.format_exc())
+            screenshotfile = self.take_screenshot()
+            logger.exception(f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
+            self.__write_excel(False, f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
             return False
 
     def inputfile(self, locator, text):
@@ -247,10 +385,12 @@ class Web:
         try:
             text = f'{sysKey.path}/lib/verify/{text}'
             ele.send_keys(text)
-            self.__write_excel(True, "输入成功")
+            self.__write_excel(True, "input file successfully")
             return True
         except Exception as e:
-            self.__write_excel(False, traceback.format_exc())
+            screenshotfile = self.take_screenshot()
+            logger.exception(f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
+            self.__write_excel(False, f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
             return False
 
     def sleep(self, t):
@@ -261,10 +401,12 @@ class Web:
         """
         try:
             time.sleep(int(t))
-            self.__write_excel(True, "等待")
+            self.__write_excel(True, "Sleep")
             return True
         except Exception as e:
-            self.__write_excel(False, traceback.format_exc())
+            screenshotfile = self.take_screenshot()
+            logger.exception(f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
+            self.__write_excel(False, f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
             return False
 
     def quit(self):
@@ -274,10 +416,12 @@ class Web:
         """
         try:
             self.driver.quit()
-            self.__write_excel(True, "等待")
+            self.__write_excel(True, "quit")
             return True
         except Exception as e:
-            self.__write_excel(False, traceback.format_exc())
+            screenshotfile = self.take_screenshot()
+            logger.exception(f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
+            self.__write_excel(False, f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
             return False
 
     def gettext(self,locator,param="text"):
@@ -292,15 +436,24 @@ class Web:
             self.__write_excel(False, self.e)
             return False
 
-        try:
-            text = ele.text
-            # 设置到关联字典
-            sysKey.relations[param] = text
-            self.__write_excel(True, "输入成功")
-            return True
-        except Exception as e:
-            self.__write_excel(False, traceback.format_exc())
-            return False
+        trycount = 20
+        while 1:
+            try:
+                text = ele.text
+                if ((text == "") or (text is None)) and trycount > 0:
+                    trycount-=1
+                    ele = self.__find_ele(locator)
+                    time.sleep(0.5)
+                    continue
+                # 设置到关联字典
+                sysKey.relations[param] = text
+                self.__write_excel(True, f"get text successfully: {text}")
+                return True
+            except Exception as e:
+                screenshotfile = self.take_screenshot()
+                logger.exception(f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
+                self.__write_excel(False, f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
+                return False
 
     def assertcontains(self, expectv,actualv):
         """
@@ -318,8 +471,36 @@ class Web:
             self.__write_excel(True, actualv)
             return True
         else:
-            self.__write_excel(False, actualv)
+            screenshotfile = self.take_screenshot()
+            logger.error(f'{str(actualv)}   | Screenshot: {str(screenshotfile)}')
+            self.__write_excel(False, f'{str(actualv)}   | Screenshot: {str(screenshotfile)}')
+            #self.__write_excel(False, actualv)
             return False
+
+    def assertHTMLcontains(self, expectv):
+        """
+        web断言关键字，断言实际结果包含预期结果
+        :param expectv: 预期结果
+        :param actualv: 实际结果
+        :return: 是否包含
+        """
+        trycount = 250
+        while 1:
+            page_source = self.driver.page_source
+
+
+            if page_source.__contains__(str(expectv)):
+                self.__write_excel(True, str(expectv))
+                return True
+            else:
+                trycount-=1
+                logger.info(f"Finding {expectv} if in page... {str(trycount)}")
+                time.sleep(0.2)
+                if trycount<=0:
+                    screenshotfile = self.take_screenshot()
+                    logger.error(f"No contain | Screenshot:  {str(screenshotfile)}")
+                    self.__write_excel(False, f"No contain | Screenshot:  {str(screenshotfile)}")
+                    return False
 
     def switchwindow(self,index=''):
         """
@@ -334,10 +515,12 @@ class Web:
         try:
             handles = self.driver.window_handles
             self.driver.switch_to.window(handles[int(index)])
-            self.__write_excel(True, "切换窗口成功")
+            self.__write_excel(True, "Switch window successfully")
             return True
         except Exception as e:
-            self.__write_excel(False, traceback.format_exc())
+            screenshotfile = self.take_screenshot()
+            logger.exception(f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
+            self.__write_excel(False, f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
             return False
 
     def intoiframe(self,locator):
@@ -354,10 +537,12 @@ class Web:
         try:
             # 进入iframe
             self.driver.switch_to.frame(ele)
-            self.__write_excel(True, "输入成功")
+            self.__write_excel(True, "enter successfully")
             return True
         except Exception as e:
-            self.__write_excel(False, traceback.format_exc())
+            screenshotfile = self.take_screenshot()
+            logger.exception(f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
+            self.__write_excel(False, f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
             return False
 
     def outiframe(self):
@@ -368,10 +553,12 @@ class Web:
         try:
             # 退出到最外面的HTML
             self.driver.switch_to.default_content()
-            self.__write_excel(True, "输入成功")
+            self.__write_excel(True, "out of iframe successfully")
             return True
         except Exception as e:
-            self.__write_excel(False, traceback.format_exc())
+            screenshotfile = self.take_screenshot()
+            logger.exception(f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
+            self.__write_excel(False, f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
             return False
 
     def movetoele(self,locator):
@@ -386,10 +573,12 @@ class Web:
             return False
         try:
             ActionChains(self.driver).move_to_element(ele).perform()
-            self.__write_excel(True, "悬停成功")
+            self.__write_excel(True, f"move to {locator} successfully")
             return True
         except Exception as e:
-            self.__write_excel(False, traceback.format_exc())
+            screenshotfile = self.take_screenshot()
+            logger.exception(f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
+            self.__write_excel(False, f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
             return False
 
     def dubbleclick(self,locator):
@@ -404,10 +593,12 @@ class Web:
             return False
         try:
             ActionChains(self.driver).double_click(ele).perform()
-            self.__write_excel(True, "鼠标左键双击成功")
+            self.__write_excel(True, "doubleclick successfully")
             return True
         except Exception as e:
-            self.__write_excel(False, traceback.format_exc())
+            screenshotfile = self.take_screenshot()
+            logger.exception(f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
+            self.__write_excel(False, f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
             return False
 
     def rightclick(self,locator):
@@ -422,10 +613,12 @@ class Web:
             return False
         try:
             ActionChains(self.driver).context_click(ele).perform()
-            self.__write_excel(True, "鼠标右键成功")
+            self.__write_excel(True, "right click successfully")
             return True
         except Exception as e:
-            self.__write_excel(False, traceback.format_exc())
+            screenshotfile = self.take_screenshot()
+            logger.exception(f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
+            self.__write_excel(False, f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
             return False
 
     def dragdrop(self,srclocator,dstlocator):
@@ -441,10 +634,12 @@ class Web:
             return False
         try:
             ActionChains(self.driver).drag_and_drop(srcele,dstele).perform()
-            self.__write_excel(True, "拖拽成功")
+            self.__write_excel(True, "drag and drop successfully")
             return True
         except Exception as e:
-            self.__write_excel(False, traceback.format_exc())
+            screenshotfile = self.take_screenshot()
+            logger.exception(f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
+            self.__write_excel(False, f'{str(traceback.format_exc())}   | Screenshot: {str(screenshotfile)}')
             return False
 
     def __get__relations(self, params):
@@ -462,6 +657,13 @@ class Web:
             params = params.replace(f'${{{key}}}', str(sysKey.relations[key]))
         return params
 
+    def __xpath_map(self,locator):
+        if locator.startswith('#'):
+            locator = xpathmap.XpathMap.read_xpath(locator[1:])
+            return locator
+        else:
+            return locator
+
     def __find_ele(self, locator):
         """
         通过定位器找到元素
@@ -471,6 +673,12 @@ class Web:
         count = 40
         while 1:
             try:
+                # find xpathmap
+                locator = self.__xpath_map(locator)
+                if locator is None:
+                    print(f'{locator} is None, break')
+                    break
+
                 # 以%{开头，说明需要find_elements (xpath)
                 if locator.startswith('%{'):
                     try:
@@ -509,13 +717,19 @@ class Web:
                     ele = self.driver.find_element_by_partial_link_text(locator)
                 else:
                     ele = self.driver.find_element_by_xpath(locator)
+                    if str(config.config.get('UIheadless')) != "True":
+                        self.driver.execute_script("arguments[0].setAttribute('style',arguments[1]);",
+                                          ele, "border:4px solid yellow;")
+                    # if ele.is_displayed() == False:
+                    #     logger.info(f"{locator} is not displayed")
+                    #     raise f"{locator} is not displayed"
 
                 return ele
 
             except Exception as e:
                 count -= 1
                 time.sleep(0.5)
-                logger.info(f'{count}:寻找元素中:{locator}')
+                logger.info(f'{count}:Trying to find ele:{locator}')
                 if not count:
                     self.e = traceback.format_exc()
                     return None
@@ -527,7 +741,7 @@ class Web:
         :return: 返回找到的元素ele
         :i：数组下标
         """
-        count = 100
+        count = 40
         while 1:
             try:
                 #xpath定位
@@ -541,10 +755,11 @@ class Web:
             except Exception as e:
                 count -= 1
                 time.sleep(0.5)
-                logger.info(f'{count}:寻找元素中:{locator}')
+                logger.info(f'{count}:Trying to find eles:{locator}')
                 if not count:
                     self.e = traceback.format_exc()
                     return None
+
 
     def __write_excel(self, status, msg):
         """

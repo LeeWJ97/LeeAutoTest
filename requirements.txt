@@ -1,0 +1,8 @@
+Appium_Python_Client==2.3.0
+Flask==1.0
+jsonpath==0.82
+openpyxl==3.0.9
+PyMySQL==1.0.2
+PyYAML==6.0
+requests==2.20.0
+selenium==3.141.0
